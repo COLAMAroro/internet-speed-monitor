@@ -1,0 +1,77 @@
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 050be3d..3acddfe 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -1,7 +1,8 @@
+ version: '3'
+ services:
+     influxdb:
+-        image: influxdb:1.7-alpine
++        restart: unless-stopped
++        image: influxdb:latest
+         ports:
+             - '8086:8086'
+         volumes:
+@@ -11,12 +12,14 @@ services:
+             - INFLUXDB_ADMIN_USER=${INFLUXDB_USERNAME}
+             - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_PASSWORD}
+     speedtester:
++        restart: unless-stopped
+         build: 'speedtest/.'
+         volumes:
+             - speedtest-storage:/usr/speedtest
+         depends_on:
+             - "influxdb"
+     telegraf:
++        restart: unless-stopped
+         build: 'telegraf/.'
+         volumes:
+             - speedtest-storage:/usr/speedtest
+@@ -24,6 +27,7 @@ services:
+         depends_on:
+             - "influxdb"
+     grafana:
++        restart: unless-stopped
+         build: 'grafana/.'
+         ports:
+             - "3000:3000"
+@@ -34,4 +38,4 @@ services:
+ volumes:
+     influxdb-storage:
+     speedtest-storage:
+-    grafana-storage:
+\ No newline at end of file
++    grafana-storage:
+diff --git a/speedtest/Dockerfile b/speedtest/Dockerfile
+index 21ad042..069cf7f 100644
+--- a/speedtest/Dockerfile
++++ b/speedtest/Dockerfile
+@@ -3,5 +3,6 @@ WORKDIR /usr/speedtest
+ RUN pip install --no-cache-dir speedtest-cli && \
+     speedtest-cli --csv-header > speedtest-results.csv && \
+     # server 3744 - Nessus GmbH (10G Uplink) (Vienna, Austria)
+-    echo "*/5 * * * * speedtest-cli --server 3744 --secure --csv >> /usr/speedtest/speedtest-results.csv" > /etc/crontabs/root
+-CMD ["crond", "-f", "-d", "8"]
+\ No newline at end of file
++       # server 23884 - Orange France (Puteaux, France)
++    echo "*/5 * * * * speedtest-cli --server 23884 --secure --csv >> /usr/speedtest/speedtest-results.csv" > /etc/crontabs/root
++CMD ["crond", "-f", "-d", "8"]
+diff --git a/telegraf/Dockerfile b/telegraf/Dockerfile
+index 8969086..ff42ffc 100644
+--- a/telegraf/Dockerfile
++++ b/telegraf/Dockerfile
+@@ -1,7 +1,7 @@
+-FROM telegraf:1.14.0-alpine
++FROM telegraf:1.14.0
+ ENV DOCKERIZE_VERSION=v0.6.1
+-RUN apk add --no-cache openssl
+-RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+-    && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+-    && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+-CMD dockerize -wait http://influxdb:8086/ping -timeout 30s telegraf
+\ No newline at end of file
++#RUN apt-get install libssl-dev
++RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-armhf-$DOCKERIZE_VERSION.tar.gz \
++    && tar -C /usr/local/bin -xzvf dockerize-linux-armhf-$DOCKERIZE_VERSION.tar.gz \
++    && rm dockerize-linux-armhf-$DOCKERIZE_VERSION.tar.gz
++CMD dockerize -wait http://influxdb:8086/ping -timeout 30s telegraf
